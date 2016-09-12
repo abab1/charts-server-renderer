@@ -1082,6 +1082,19 @@
             $('body').append(data)
         }
     });
+
+    $.ajax({
+        type: 'POST',
+        url: 'http://127.0.0.1:1337/getHealthData',
+        data: JSON.stringify({
+            data: chartData
+        }),
+        dataType: 'json',
+        success: function (data) {
+            console.log(data);
+            $('body').append(data)
+        }
+    });
 </script>
 </body>
 </html>

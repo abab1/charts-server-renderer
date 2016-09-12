@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+
+    <link href="http://getbootstrap.com/dist/css/bootstrap.min.css" rel="stylesheet">
+
+    <link href="http://getbootstrap.com/examples/justified-nav/justified-nav.css" rel="stylesheet">
+
+    <style>
+        .axis path {
+            fill: none;
+            stroke: #777;
+            shape-rendering: crispEdges;
+        }
+        .axis text {
+            font-family: Lato;
+            font-size: 13px;
+        }
+        .legend {
+    font-size: 14px;
+    font-weight: bold;
+    cursor: pointer;
+}
+    </style>
+
+</head>
+
+<body>
+
+<div class="container">
+
+    <div class="jumbotron">
+
+        <svg id="visualisation" width="1000" height="500"></svg>
+        <script src="https://code.jquery.com/jquery-2.1.4.min.js"></script>
+        <script src="http://d3js.org/d3.v3.min.js" charset="utf-8"></script>
+        <script>
+                function InitChart() {
+
+            var data = $.ajax({
+                type: 'POST',
+                url: 'http://127.0.0.1:1337/getHealthData',
+                data: JSON.stringify({
+                    data: undefined
+                }),
+                dataType: 'json',
+                async: false,
+                success: function (data) {
+                    $('body').append(data)
+                }
+            });
+                    data = JSON.parse(data.responseText);
+                    var dataGroupGender = d3.nest()
+                        .key(function(d) {return d.Gender;})
+                        .entries(data);
+                    var dataGroupAge = d3.nest()
+                            .key(function(d) {return d.Age;})
+                            .entries(data);
+                    var ageHistogram = [];
+                    dataGroupAge.forEach( function(d, i) {
+                        var obj = {};
+                        obj.age = i;
+                        obj.numOfPatients = d.values.length;
+                        ageHistogram.push(obj);
+                    });
+                    console.log(dataGroupAge.length);
+
+                    var genderAgeHistogram = [];
+                    dataGroupGender.length = dataGroupGender.length -1;
+                    dataGroupGender.forEach( function(d, i) {
+                        var obj = {};
+                        obj.gender = d.key;
+                        var dataGroupAge = d3.nest()
+                                .key(function(d) {return d.Age;})
+                                .entries(d.values);
+                        var ageHistogram = [];
+                        dataGroupAge.forEach( function(d, i) {
+                            var obj = {};
+                            obj.age = i;
+                            obj.numOfPatients = d.values.length;
+                            ageHistogram.push(obj);
+                        });
+                        ageHistogram.push(obj);
+                        obj.ageHistogram = ageHistogram;
+                        genderAgeHistogram.push(obj)
+                    });
+
+                    var color = d3.scale.category10();
+                    var colorArr = {"MALE" : "blue", "FEMALE" : "red"};
+                    var vis = d3.select("#visualisation"),
+                        WIDTH = 1000,
+                        HEIGHT = 500,
+                        padding = 30,
+                        MARGINS = {
+                            top: 50,
+                            right: 20,
+                            bottom: 50,
+                            left: 50
+                        },
+                        lSpace = WIDTH/(dataGroupGender.length);
+                        xScale = d3.scale.linear().range([MARGINS.left, WIDTH - MARGINS.right]).domain([d3.min(data, function(d) {
+                            return parseInt(d.Age);
+                        }), d3.max(data, function(d) {
+                            return parseInt(d.Age);
+                        })]),
+                        yScale = d3.scale.linear().range([HEIGHT - MARGINS.top, MARGINS.bottom]).domain([d3.min(ageHistogram, function(d) {
+                            return d.numOfPatients;
+                        }), d3.max(ageHistogram, function(d) {
+                            return d.numOfPatients;
+                        })]),
+                        xAxis = d3.svg.axis()
+                        .scale(xScale),
+                        yAxis = d3.svg.axis()
+                        .scale(yScale)
+                        .orient("left");
+
+                    vis.append("svg:g")
+                        .attr("class", "x axis")
+                        .attr("transform", "translate(0," + (HEIGHT - MARGINS.bottom) + ")")
+                        .call(xAxis);
+                    vis.append("svg:g")
+                        .attr("class", "y axis")
+                        .attr("transform", "translate(" + (MARGINS.left) + ",0)")
+                        .call(yAxis);
+
+                    var lineGen = d3.svg.line()
+                        .x(function(d) {
+                            return xScale(parseInt(d.age));
+                        })
+                        .y(function(d) {
+                            return yScale(d.numOfPatients);
+                        })
+                        .interpolate("basis");
+                    genderAgeHistogram.forEach(function(d,i) {
+
+                        vis.append('svg:path')
+                        .attr('d', lineGen(d.ageHistogram))
+                        .attr('stroke', colorArr[d.gender])
+                        .attr('stroke-width', 2)
+                        .attr('id', 'line_'+d.gender)
+                        .attr('fill', 'none');
+                        vis.append("text")
+                            .attr("x", (lSpace/2)+i*lSpace)
+                            .attr("y", HEIGHT)
+                            .style("fill", colorArr[d.gender])
+                            .attr("class","legend")
+                            .on('click',function(){
+                                var active   = d.active ? false : true;
+                                var opacity = active ? 0 : 1;
+                                d3.select("#line_" + d.gender).style("opacity", opacity);
+                                d.active = active;
+                            })
+                            .text(d.gender);
+
+                    });
+
+                    vis.append("text")
+                            .attr("text-anchor", "middle")  // this makes it easy to centre the text as the transform is applied to the anchor
+                            .attr("transform", "translate("+ (padding/2) +","+(HEIGHT/2)+")rotate(-90)")  // text is drawn off the screen top left, move down and out and rotate
+                            .text("Number of Patients");
+
+                    vis.append("text")
+                            .attr("text-anchor", "middle")  // this makes it easy to centre the text as the transform is applied to the anchor
+                            .attr("transform", "translate("+ (WIDTH/2) +","+(HEIGHT-(padding/3))+")")  // centre below axis
+                            .text("Age");
+
+                }
+
+                InitChart();
+            </script>
+    </div>
+
+</div>
+
+</body>
+
+</html>
